@@ -141,7 +141,9 @@ internal var requestsLog = [RequestLog]()
 /// Timestamp for refference
 internal var timeIntervalSince1970MilliSeconds: Double {
     var time = timeval()
-    gettimeofday(&time, nil)
+    if gettimeofday(&time, nil) == -1 {
+        preconditionFailure("Could not get time of day.")
+    }
     return Double(time.tv_sec) * 1_000.0 + Double(time.tv_usec) / 1_000.0
 }
 
