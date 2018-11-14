@@ -140,7 +140,9 @@ internal var requestsLog = [RequestLog]()
 
 /// Timestamp for refference
 internal var timeIntervalSince1970MilliSeconds: Double {
-    return Date().timeIntervalSince1970 * 1000
+    var time = timeval()
+    gettimeofday(&time, nil)
+    return Double(time.tv_sec) * 1_000.0 + Double(time.tv_usec) / 1_000.0
 }
 
 internal var queue = DispatchQueue(label: "requestLogQueue")
