@@ -9,7 +9,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/vapor/vapor.git", from: "3.0.5"),
-        .package(url: "https://github.com/RuntimeTools/SwiftMetrics.git", from: "2.0.0"),
+        .package(url: "https://github.com/t089/SwiftMetrics.git", .branch("standalone")),
         .package(url: "https://github.com/vapor/leaf.git", from: "3.0.0"),
         .package(url: "https://github.com/SwiftyJSON/SwiftyJSON.git", from: "4.0.0")
     ],
