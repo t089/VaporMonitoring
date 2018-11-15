@@ -81,45 +81,7 @@ public final class VaporMonitoring {
     }
     
     static func getPublicDir() -> String {
-        
         return DirectoryConfig.detect().workDir.appending("Public/metrics")
-        
-        var appPath = ""
-        var workingPath = ""
-        let fm = FileManager.default
-        let currentDir = fm.currentDirectoryPath
-        if currentDir.contains(".build") {
-            workingPath = currentDir
-        }
-        if let i = workingPath.range(of: ".build") {
-            appPath = String(workingPath[..<i.lowerBound])
-        }
-        let checkoutsPath = appPath + ".build/checkouts/"
-        if fm.fileExists(atPath: checkoutsPath) {
-            _ = fm.changeCurrentDirectoryPath(checkoutsPath)
-        }
-        do {
-            let dirContents = try fm.contentsOfDirectory(atPath: fm.currentDirectoryPath)
-            for dir in dirContents {
-                if dir.contains("VaporMonitoring") {
-                    ///that's where we want to be!
-                    _ = fm.changeCurrentDirectoryPath(dir)
-                }
-            }
-        } catch {
-            print("SwiftMetrics: Error obtaining contents of directory: \(fm.currentDirectoryPath), \(error).")
-            return ""
-        }
-        let fileName = NSString(string: #file)
-        let installDirPrefixRange: NSRange
-        let installDir = fileName.range(of: "/Sources/VaporMonitoring/VaporMonitoring.swift", options: .backwards)
-        if  installDir.location != NSNotFound {
-            installDirPrefixRange = NSRange(location: 0, length: installDir.location)
-        } else {
-            installDirPrefixRange = NSRange(location: 0, length: fileName.length)
-        }
-        let folderName = fileName.substring(with: installDirPrefixRange)
-        return folderName + "/Public"
     }
 }
 
