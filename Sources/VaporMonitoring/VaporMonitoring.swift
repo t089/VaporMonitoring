@@ -81,6 +81,9 @@ public final class VaporMonitoring {
     }
     
     static func getPublicDir() -> String {
+        
+        return DirectoryConfig.detect().workDir.appending("Public/metrics")
+        
         var appPath = ""
         var workingPath = ""
         let fm = FileManager.default
