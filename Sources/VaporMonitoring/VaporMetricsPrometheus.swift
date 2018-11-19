@@ -99,7 +99,7 @@ public class HTTPCounterHandler {
     let handler: String
     let statusCode: UInt
     let requestMethod: String
-    var count: Int = 0
+    var count: Int = 1
     
     public init(handler: String, statusCode: UInt, requestMethod: String) {
         self.handler = handler
