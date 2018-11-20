@@ -87,11 +87,11 @@ public final class VaporMonitoring {
 
 /// Data collected from each request
 public struct RequestData: SMData {
-    public let timestamp: Int
-    public let url: String
-    public let requestDuration: Double
-    public let statusCode: UInt
-    public let method: HTTPMethod
+    public var timestamp: Int
+    public var url: String
+    public var requestDuration: Double
+    public var statusCode: UInt
+    public var method: HTTPMethod
 }
 
 /// Log of request
