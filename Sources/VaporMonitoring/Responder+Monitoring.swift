@@ -22,6 +22,9 @@ public final class MonitoredResponder: Responder, ServiceType {
         return try MonitoredResponder.monitoring(responder: baseResponder, metrics: metrics)
     }
     
+    /// A closure that can modify the `RequestData` before it is stored as a measurement
+    public var processRequestData : (( Request, inout RequestData) -> ())?
+    
     /// See `Responder.respond`
     public func respond(to req: Request) throws -> EventLoopFuture<Response> {
         // Logging
@@ -29,7 +32,9 @@ public final class MonitoredResponder: Responder, ServiceType {
             queue.sync {
                 for (index, r) in requestsLog.enumerated() {
                     if req == r.request {
-                        self.metrics.emitData(RequestData(timestamp: Int(r.timestamp), url: r.request.http.urlString, requestDuration: timeIntervalSince1970MilliSeconds - r.timestamp, statusCode: res.http.status.code, method: r.request.http.method))
+                        var data = RequestData(timestamp: Int(r.timestamp), url: r.request.http.urlString, requestDuration: timeIntervalSince1970MilliSeconds - r.timestamp, statusCode: res.http.status.code, method: r.request.http.method)
+                        self.processRequestData?(req, &data)
+                        self.metrics.emitData(data)
                         requestsLog.remove(at: index)
                         break
                     }
