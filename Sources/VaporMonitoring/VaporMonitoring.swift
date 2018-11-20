@@ -21,6 +21,9 @@ public struct MonitoringConfig {
     /// At what route to host the Prometheus data
     var prometheusRoute: String
     
+    /// A function that can process `RequestData` before it is logged
+    public var processRequestData: ((Request, inout RequestData) -> ())?
+    
     public init(dashboard: Bool, prometheus: Bool, dashboardRoute: String, prometheusRoute: String) {
         self.dashboard = dashboard
         self.prometheus = prometheus
@@ -38,7 +41,13 @@ public struct MonitoringConfig {
 public final class VaporMonitoring {    
     /// Sets up config & services to monitor your Vapor app
     public static func setupMonitoring(_ config: inout Config, _ services: inout Services, _ middlewareConfig: inout MiddlewareConfig, _ monitorConfig: MonitoringConfig = .default()) throws -> MonitoredRouter {
-        services.register(MonitoredResponder.self)
+        
+        services.register { (container) -> (MonitoredResponder) in
+            let responder = try MonitoredResponder.makeService(for: container)
+            responder.processRequestData = monitorConfig.processRequestData
+            return responder
+        }
+        
         config.prefer(MonitoredResponder.self, for: Responder.self)
         
         let metrics = try SwiftMetrics()
