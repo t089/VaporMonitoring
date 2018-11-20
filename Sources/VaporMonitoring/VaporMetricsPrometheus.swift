@@ -138,24 +138,25 @@ public class HTTPCounter {
     }
 }
 
-var lastCPU: CPUData!
-var lastMem: MemData!
+var _lastCPU: CPUData!
+var _lastMem: MemData!
 
-var httpCounter: HTTPCounter = HTTPCounter()
-var httpDurations: HTTPDurationSummary = HTTPDurationSummary()
+var _httpCounter: HTTPCounter = HTTPCounter()
+var _httpDurations: HTTPDurationSummary = HTTPDurationSummary()
 
 func cpuEvent(cpu: CPUData) {
-    lastCPU = cpu
+    queue.sync {
+        _lastCPU = cpu
+    }
 }
 
 func memEvent(mem: MemData) {
-    lastMem = mem
+    queue.sync { _lastMem = mem }
 }
 
 func httpEvent(http: RequestData) {
-    httpCounter.addRequest(url: http.url, statusCode: http.statusCode, requestMethod: http.method.string);
-    httpDurations.addRequest(url: http.url, durationMicros: http.requestDuration * 1000.0);
-    
+    _httpCounter.addRequest(url: http.url, statusCode: http.statusCode, requestMethod: http.method.string);
+    _httpDurations.addRequest(url: http.url, durationMicros: http.requestDuration * 1000.0); 
 }
 
 /// Class providing Prometheus data
@@ -178,6 +179,21 @@ public class VaporMetricsPrometheus: Vapor.Service {
     }
     
     func getPrometheusData(_ req: Request) throws -> String {
+        var lastCPU: CPUData!
+        var lastMem: MemData!
+        
+        var httpCounter: HTTPCounter!
+        var httpDurations: HTTPDurationSummary!
+        
+        queue.sync {
+            lastCPU = _lastCPU
+            lastMem = _lastMem
+            
+            httpCounter = _httpCounter
+            httpDurations = _httpDurations
+        }
+        
+        
         var output = [String]()
         if (lastCPU != nil) {
             output.append("# HELP os_cpu_used_ratio The ratio of the systems CPU that is currently used (values are 0-1)\n")

@@ -40,9 +40,9 @@ public struct MonitoringConfig {
 /// Used to set up monitoring/metrics on your Vapor app
 public final class VaporMonitoring {    
     /// Sets up config & services to monitor your Vapor app
-    public static func setupMonitoring(_ config: inout Config, _ services: inout Services, _ middlewareConfig: inout MiddlewareConfig, _ monitorConfig: MonitoringConfig = .default()) throws -> MonitoredRouter {
+    public static func setupMonitoring(_ config: inout Config, _ services: inout Services, _ middlewareConfig: inout MiddlewareConfig, _ monitorConfig: MonitoringConfig = .default(), endpointRouter: Router? = nil) throws -> MonitoredRouter {
         
-        services.register { (container) -> (MonitoredResponder) in
+        services.register([Responder.self]) { (container) -> (MonitoredResponder) in
             let responder = try MonitoredResponder.makeService(for: container)
             responder.processRequestData = monitorConfig.processRequestData
             return responder
@@ -70,7 +70,7 @@ public final class VaporMonitoring {
         }
         
         if monitorConfig.prometheus {
-            let prometheus = try VaporMetricsPrometheus(metrics: metrics, router: router, route: monitorConfig.prometheusRoute)
+            let prometheus = try VaporMetricsPrometheus(metrics: metrics, router: endpointRouter ?? router, route: monitorConfig.prometheusRoute)
             services.register(prometheus)
         }
         

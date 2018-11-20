@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SwiftMetrics
+@_exported import SwiftMetrics
 import Vapor
 
 // MARK: - Vapor extensions
