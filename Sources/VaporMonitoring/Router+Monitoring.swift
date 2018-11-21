@@ -26,7 +26,7 @@ public final class MonitoredRouter: Router {
     /// Adds logging to routing a request
     public func route(request: Request) -> Responder? {
         // Logging
-        queue.sync {
+        requestLogQueue.sync {
             if requestsLog.count > 1000 {
                 requestsLog.removeFirst()
             }

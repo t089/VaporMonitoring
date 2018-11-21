@@ -29,17 +29,18 @@ public final class MonitoredResponder: Responder, ServiceType {
     public func respond(to req: Request) throws -> EventLoopFuture<Response> {
         // Logging
         return try self.responder.respond(to: req).map(to: Response.self, { (res) in
-            queue.sync {
+            let data : RequestData? = requestLogQueue.sync {
                 for (index, r) in requestsLog.enumerated() {
                     if req == r.request {
                         var data = RequestData(timestamp: Int(r.timestamp), url: r.request.http.urlString, requestDuration: timeIntervalSince1970MilliSeconds - r.timestamp, statusCode: res.http.status.code, method: r.request.http.method)
                         self.processRequestData?(req, &data)
-                        self.metrics.emitData(data)
                         requestsLog.remove(at: index)
-                        break
+                        return data
                     }
                 }
+                return nil
             }
+            data.map(self.metrics.emitData)
             return res
         })
     }

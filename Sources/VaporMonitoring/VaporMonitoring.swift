@@ -121,4 +121,4 @@ internal var timeIntervalSince1970MilliSeconds: Double {
     return Double(time.tv_sec) * 1_000.0 + Double(time.tv_usec) / 1_000.0
 }
 
-internal var queue = DispatchQueue(label: "requestLogQueue")
+internal var requestLogQueue = DispatchQueue(label: "requestLogQueue")

@@ -18,23 +18,23 @@ public class HTTPDurationSummaryHandler {
     public init(handler: String, durationMicros: Double) {
         self.handler = handler
         self.totalDuration = 0
-        addEvent(durationMicros: durationMicros)
+        self.addEvent(durationMicros: durationMicros)
     }
     
     func addEvent(durationMicros: Double) {
-        durations.append(durationMicros)
-        totalDuration += durationMicros
+        self.durations.append(durationMicros)
+        self.totalDuration += durationMicros
     }
     
     // Returns a dictionary mapping requested quantiles to values.
     public func calculateQuantiles(quantiles: [Double]) -> [Double: Double] {
         // Sort the list first!
-        durations.sort()
+        self.durations.sort()
         
         // Calculate each quantile.
         var quantileMap: [Double: Double] = [:]
         quantiles.forEach( {(q: Double) -> () in
-            quantileMap[q] = quantile(q)
+            quantileMap[q] = self.quantile(q)
         })
         return quantileMap
     }
@@ -46,27 +46,27 @@ public class HTTPDurationSummaryHandler {
         // Saves a lot of checks later on.
         // (We cannot have durations.count = 0 as we create this object
         // withthe first value.)
-        if (durations.count == 1) {
-            return durations[0];
+        if (self.durations.count == 1) {
+            return self.durations[0];
         }
         
-        let n : Double = Double(durations.count);
+        let n : Double = Double(self.durations.count);
         if let pos = Int(exactly: (n*q)) {
             // pos is a whole number
             if (pos < 2) {
                 // pos is 0 or 1.
-                return durations[0]
-            } else if (pos == durations.count) {
+                return self.durations[0]
+            } else if (pos == self.durations.count) {
                 // pos is last element, can't interpolate.
-                return durations[pos - 1]
+                return self.durations[pos - 1]
             }
             // take average of this and the next value.
-            return (durations[pos - 1] + durations[pos]) / 2.0;
+            return (self.durations[pos - 1] + self.durations[pos]) / 2.0;
         } else {
             // If we don't divide perfectly take the nearest
             // value above.
             let pos : Int = Int((n * q).rounded(.up))
-            return durations[pos - 1]
+            return self.durations[pos - 1]
         }
     }
 }
@@ -80,16 +80,16 @@ public class HTTPDurationSummary {
     public func addRequest(url: String, durationMicros: Double) {
         if let urlparser = URL(string: url) {
             let path = urlparser.path
-            if let handler = handlers[path] {
+            if let handler = self.handlers[path] {
                 handler.addEvent(durationMicros: durationMicros)
             } else {
-                handlers[path] = HTTPDurationSummaryHandler(handler: path, durationMicros: durationMicros)
+                self.handlers[path] = HTTPDurationSummaryHandler(handler: path, durationMicros: durationMicros)
             }
         }
     }
     
-    public func writeCounts(writer:(HTTPDurationSummaryHandler)->()) {
-        handlers.forEach { key, value in
+    public func writeCounts(writer: (HTTPDurationSummaryHandler) -> ()) {
+        self.handlers.forEach { key, value in
             writer(value)
         }
     }
@@ -108,7 +108,7 @@ public class HTTPCounterHandler {
     }
     
     func addEvent() {
-        count += 1
+        self.count += 1
     }
 }
 
@@ -123,39 +123,44 @@ public class HTTPCounter {
         if let urlparser = URL(string: url) {
             let path = urlparser.path
             let key: String = "\(path) \(statusCode) \(requestMethod)"
-            if let handler = handlers[key] {
+            if let handler = self.handlers[key] {
                 handler.addEvent()
             } else {
-                handlers[key] = HTTPCounterHandler(handler: path, statusCode: statusCode, requestMethod: requestMethod)
+                self.handlers[key] = HTTPCounterHandler(handler: path, statusCode: statusCode, requestMethod: requestMethod)
             }
         }
     }
     
     public func writeCounts(writer:(HTTPCounterHandler)->()) {
-        handlers.forEach { key, value in
+        self.handlers.forEach { key, value in
             writer(value)
         }
     }
 }
 
-var lastCPU: CPUData!
-var lastMem: MemData!
+fileprivate var _lastCPU: CPUData!
+fileprivate var _lastMem: MemData!
 
-var httpCounter: HTTPCounter = HTTPCounter()
-var httpDurations: HTTPDurationSummary = HTTPDurationSummary()
+fileprivate var _httpCounter: HTTPCounter = HTTPCounter()
+fileprivate var _httpDurations: HTTPDurationSummary = HTTPDurationSummary()
 
 func cpuEvent(cpu: CPUData) {
-    lastCPU = cpu
+    prometheusQueue.async(flags: .barrier) {
+        _lastCPU = cpu
+    }
 }
 
 func memEvent(mem: MemData) {
-    lastMem = mem
+    prometheusQueue.async(flags: .barrier) {
+        _lastMem = mem
+    }
 }
 
 func httpEvent(http: RequestData) {
-    httpCounter.addRequest(url: http.url, statusCode: http.statusCode, requestMethod: http.method.string);
-    httpDurations.addRequest(url: http.url, durationMicros: http.requestDuration * 1000.0);
-    
+    prometheusQueue.async(flags: .barrier) {
+        _httpCounter.addRequest(url: http.url, statusCode: http.statusCode, requestMethod: http.method.string);
+        _httpDurations.addRequest(url: http.url, durationMicros: http.requestDuration * 1000.0);
+    }
 }
 
 /// Class providing Prometheus data
@@ -170,16 +175,20 @@ public class VaporMetricsPrometheus: Vapor.Service {
         self.metrics = metrics
         self.monitor = metrics.monitor()
         
-        monitor.on(cpuEvent)
-        monitor.on(memEvent)
-        monitor.on(httpEvent)
+        self.monitor.on(cpuEvent)
+        self.monitor.on(memEvent)
+        self.monitor.on(httpEvent)
         
         router.get(route == "" ? "prometheus-metrics" : route, use: self.getPrometheusData)
     }
     
     func getPrometheusData(_ req: Request) throws -> String {
+        let (lastCPU, lastMem, httpCounter, httpDurations) = prometheusQueue.sync {
+            return (_lastCPU, _lastMem, _httpCounter, _httpDurations)
+        }
+        
         var output = [String]()
-        if (lastCPU != nil) {
+        if let lastCPU = lastCPU {
             output.append("# HELP os_cpu_used_ratio The ratio of the systems CPU that is currently used (values are 0-1)\n")
             output.append("# TYPE os_cpu_used_ratio gauge\n")
             output.append("os_cpu_used_ratio \(lastCPU.percentUsedBySystem)\n")
@@ -187,7 +196,7 @@ public class VaporMetricsPrometheus: Vapor.Service {
             output.append("# TYPE process_cpu_used_ratio gauge\n")
             output.append("process_cpu_used_ratio \(lastCPU.percentUsedByApplication)\n")
         }
-        if (lastMem != nil) {
+        if let lastMem = lastMem {
             output.append("# HELP os_resident_memory_bytes OS memory size in bytes.\n")
             output.append("# TYPE os_resident_memory_bytes gauge\n")
             output.append("os_resident_memory_bytes \(lastMem.totalRAMUsed)\n")
@@ -221,3 +230,6 @@ public class VaporMetricsPrometheus: Vapor.Service {
         return output.joined(separator: "")
     }
 }
+
+// single-writer, multiple-readers queue
+fileprivate let prometheusQueue = DispatchQueue(label: "prometheus queue", attributes: .concurrent)
