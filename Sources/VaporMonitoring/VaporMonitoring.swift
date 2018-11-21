@@ -42,7 +42,7 @@ public final class VaporMonitoring {
     /// Sets up config & services to monitor your Vapor app
     public static func setupMonitoring(_ config: inout Config, _ services: inout Services, _ middlewareConfig: inout MiddlewareConfig, _ monitorConfig: MonitoringConfig = .default()) throws -> MonitoredRouter {
         
-        services.register { (container) -> (MonitoredResponder) in
+        services.register(Responder.self) { (container) -> (MonitoredResponder) in
             let responder = try MonitoredResponder.makeService(for: container)
             responder.processRequestData = monitorConfig.processRequestData
             return responder
