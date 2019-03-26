@@ -8,7 +8,6 @@
 import Foundation
 import SwiftMetrics
 import Vapor
-import Leaf
 
 /// Provides configuration for VaporMonitoring
 public struct MonitoringConfig {
@@ -55,19 +54,6 @@ public final class VaporMonitoring {
         
         let router = try MonitoredRouter()
         config.prefer(MonitoredRouter.self, for: Router.self)
-        
-        if monitorConfig.dashboard && publicDir != "" {
-            let publicDir = getPublicDir()
-            let fileMiddelware = FileMiddleware(publicDirectory: publicDir)
-            
-            middlewareConfig.use(fileMiddelware)
-            
-            let dashboard = try VaporMetricsDash(metrics: metrics, router: router, route: monitorConfig.dashboardRoute)
-            services.register(dashboard)
-            let metricsServer = MetricsWebSocketServer()
-            metricsServer.get(dashboard.route, use: dashboard.socketHandler)
-            services.register(metricsServer, as: WebSocketServer.self)
-        }
         
         if monitorConfig.prometheus {
             let prometheus = try VaporMetricsPrometheus(metrics: metrics, router: router, route: monitorConfig.prometheusRoute)

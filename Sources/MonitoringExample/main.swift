@@ -1,7 +1,6 @@
 import Vapor
 import VaporMonitoring
 import SwiftMetrics
-import Leaf
 
 public func routes(_ router: Router) throws {
     // Basic "Hello, world!" example
