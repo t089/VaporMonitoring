@@ -7,7 +7,6 @@
 
 import Foundation
 import Vapor
-import Configuration
 import SwiftMetrics
 
 public class HTTPDurationSummaryHandler {
